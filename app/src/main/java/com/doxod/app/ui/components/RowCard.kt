@@ -14,11 +14,10 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,8 +27,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -44,7 +43,6 @@ import com.doxod.app.ui.Field
 import com.doxod.app.ui.theme.DarkBackground
 import com.doxod.app.ui.theme.DarkSurface
 import com.doxod.app.ui.theme.DarkSurfaceElevated
-import com.doxod.app.ui.theme.DarkSurfaceVariant
 import com.doxod.app.ui.theme.ErrorRed
 import com.doxod.app.ui.theme.GoldBorder
 import com.doxod.app.ui.theme.GoldLight
@@ -73,21 +71,20 @@ fun RowCard(
     onDelete: () -> Unit,
 ) {
     val filled = !isDraft
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        backgroundColor = if (filled) DarkSurface else Color(0x991B1926), // DarkSurfaceVariant alpha 0.6
-        contentPadding = PaddingZero,
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (filled) DarkSurface else Color(0x991B1926)) // DarkSurfaceVariant alpha 0.6
+            .border(
+                width = if (filled) 1.dp else 0.5.dp,
+                color = if (filled) GoldBorder else DarkSurfaceElevated,
+                shape = RoundedCornerShape(12.dp),
+            ),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .border(
-                    width = if (filled) 1.dp else 0.5.dp,
-                    color = if (filled) GoldBorder else DarkSurfaceElevated,
-                    shape = RoundedCornerShape(12.dp),
-                )
                 .padding(12.dp),
         ) {
             // Верхний ряд: номер, дата, кнопки
@@ -215,8 +212,6 @@ fun RowCard(
     }
 }
 
-private val PaddingZero = androidx.compose.foundation.layout.PaddingValues(0.dp)
-
 @Composable
 private fun IconBtn(iconRes: Int, tint: Color, onClick: () -> Unit, iconSize: Int = 20) {
     Box(
@@ -272,15 +267,10 @@ private fun LabeledField(
                 .border(width = if (focused || error) 1.5.dp else 1.dp, color = borderColor, shape = RoundedCornerShape(8.dp))
                 .padding(horizontal = 10.dp, vertical = 6.dp),
         ) {
-            if (value.isEmpty() && !focused) {
-                Text(placeholder, fontSize = 13.sp, color = TextTertiary, maxLines = 1)
-            }
             androidx.compose.foundation.text.BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
                 textStyle = textStyle,
-                minLines = minLines,
-                maxLines = maxLines,
                 keyboardOptions = keyboardOptions,
                 cursorBrush = androidx.compose.ui.graphics.SolidColor(if (focusGold) GoldPrimary else SuccessGreen),
                 modifier = Modifier
@@ -291,6 +281,17 @@ private fun LabeledField(
                             onFocusChanged(st.hasFocus)
                         }
                     },
+                decorationBox = { inner: @Composable () -> Unit ->
+                    androidx.compose.foundation.layout.Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = if (minLines > 1) Alignment.TopStart else Alignment.CenterStart,
+                    ) {
+                        if (value.isEmpty()) {
+                            Text(placeholder, fontSize = 13.sp, color = TextTertiary, maxLines = 1)
+                        }
+                        inner()
+                    }
+                },
             )
         }
     }

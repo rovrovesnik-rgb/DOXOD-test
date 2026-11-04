@@ -136,18 +136,26 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val blockSaved = saved.filter { it.block == b }.sortedBy { it.ord }
             out.addAll(blockSaved)
             val key = "$y-$m-$b"
-            val draftId = draftIds[key] ?: UUID.randomUUID().toString().also { draftIds[key] = it }
+            var draftId = draftIds[key] ?: UUID.randomUUID().toString().also { draftIds[key] = it }
             // если черновик стал сохранённой строкой — новый UUID для блока
             if (blockSaved.any { it.id == draftId }) {
                 val newId = UUID.randomUUID().toString()
                 draftIds[key] = newId
-                out.add(emptyDraft(y, m, b, blockSaved.size + 1, newId))
+                out.add(emptyDraft(y, m, b, nextOrd(blockSaved), newId))
+            } else if (draftId.isEmpty()) {
+                // слот освобождён (удалена пустая сохранённая строка) — создаём новый черновик
+                val newId = UUID.randomUUID().toString()
+                draftIds[key] = newId
+                out.add(emptyDraft(y, m, b, nextOrd(blockSaved), newId))
             } else {
-                out.add(emptyDraft(y, m, b, blockSaved.size + 1, draftId))
+                out.add(emptyDraft(y, m, b, nextOrd(blockSaved), draftId))
             }
         }
         return out
     }
+
+    private fun nextOrd(blockSaved: List<WorkRow>): Int =
+        (blockSaved.maxOfOrNull { it.ord } ?: 0) + 1
 
     private fun emptyDraft(y: Int, m: Int, b: Int, ord: Int, id: String) = WorkRow(
         id = id, y = y, m = m, block = b, ord = ord,
@@ -187,14 +195,27 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** Применить формат при потере фокуса (дата/деньги). */
     fun commitField(rowId: String, field: Field) {
         val r = _state.value.rows.firstOrNull { it.id == rowId } ?: return
+        val cur = when (field) { Field.DATE -> r.date; Field.NET -> r.net; else -> r.gross }
         val formatted = when (field) {
-            Field.DATE -> DateUtils.applyMask(r.date)
-            Field.NET -> MoneyUtils.formatOnBlur(r.net)
-            Field.GROSS -> MoneyUtils.formatOnBlur(r.gross)
+            Field.DATE -> DateUtils.applyMask(cur)
+            Field.NET -> MoneyUtils.formatOnBlur(cur)
+            Field.GROSS -> MoneyUtils.formatOnBlur(cur)
             else -> return
         }
-        if (formatted != (when (field) { Field.DATE -> r.date; Field.NET -> r.net; else -> r.gross })) {
-            editField(rowId, field, formatted)
+        if (formatted != cur) {
+            // обновляем память немедленно и пишем в БД сразу (без debounce),
+            // иначе отложенный таймер перезапишет результат старым значением
+            saveTimers.remove(rowId)?.cancel()
+            val idx = _state.value.rows.indexOfFirst { it.id == rowId }
+            val nr = when (field) {
+                Field.DATE -> r.copy(date = formatted)
+                Field.NET -> r.copy(net = formatted)
+                else -> r.copy(gross = formatted)
+            }
+            val newRows = ArrayList(_state.value.rows)
+            newRows[idx] = nr
+            _state.value = _state.value.copy(rows = newRows)
+            scope.launch { withIo { db.upsertRow(nr) } }
         }
     }
 
@@ -250,6 +271,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun deleteRow(rowId: String) {
         saveTimers.remove(rowId)?.cancel()
         val st = _state.value
+        // Если удаляем сохранённую пустую строку (черновик под фото), освобождаем слот черновика блока
+        val r = st.rows.firstOrNull { it.id == rowId }
+        if (r != null && !r.isFilled()) draftIds["${r.y}-${r.m}-${r.block}"] = null
         _state.value = st.copy(rows = st.rows.filter { it.id != rowId })
         scope.launch {
             withIo { db.deleteRowWithPhotos(rowId) }
@@ -318,6 +342,25 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (!r.isFilled()) {
             // черновик: сохраняем как пустую строку, чтобы к нему можно было крепить фото
             scope.launch { withIo { db.upsertRow(r) } }
+        }
+    }
+
+    /** Есть ли у строки заполненные поля (без учёта фото). */
+    fun rowHasText(rowId: String): Boolean {
+        val r = _state.value.rows.firstOrNull { it.id == rowId } ?: return false
+        return r.model.isNotBlank() || r.work.isNotBlank() || r.net.isNotBlank() || r.gross.isNotBlank()
+    }
+
+    /**
+     * Гарантированно сохранить строку в БД (даже пустую — черновик под фото)
+     * и только потом вызвать onDone. Used перед обработкой фото.
+     */
+    fun persistRowNow(rowId: String, onDone: () -> Unit) {
+        saveTimers.remove(rowId)?.cancel()
+        val r = _state.value.rows.firstOrNull { it.id == rowId } ?: run { onDone(); return }
+        scope.launch {
+            withIo { db.upsertRow(r) }
+            onDone()
         }
     }
 
