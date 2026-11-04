@@ -60,6 +60,7 @@ import com.doxod.app.ui.theme.TextTertiary
 /**
  * Полноэкранная фотогалерея строки: сетка 3 колонки, чипы порядка, добавление, удаление.
  */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun GalleryDialog(
     photos: List<PhotoThumb>,
@@ -288,6 +289,7 @@ private fun ThumbCell(modifier: Modifier = Modifier, photo: PhotoThumb, onClick:
  * Просмотр одного фото: чёрный фон, свайпы влево-вправо, кнопки листания,
  * счётчик «i / n», удалить/закрыть. Blob грузится отдельно по id.
  */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 private fun FullscreenViewer(
     photos: List<PhotoThumb>,

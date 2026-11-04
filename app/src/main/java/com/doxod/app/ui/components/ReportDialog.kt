@@ -28,6 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -57,6 +58,7 @@ import java.io.File
  * Полноэкранный предпросмотр HTML-отчёта: WebView (JS выключен),
  * кнопки «Печать / PDF», «Поделиться», «Сохранить».
  */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun ReportDialog(
     title: String,
@@ -99,6 +101,9 @@ fun ReportDialog(
 
                 // Белый контейнер под WebView
                 val webViewRef = remember { mutableStateOf<WebView?>(null) }
+                DisposableEffect(Unit) {
+                    onDispose { webViewRef.value?.destroy() }
+                }
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -121,7 +126,6 @@ fun ReportDialog(
                                 webViewRef.value = this
                             }
                         },
-                        onDispose = { view -> (view as WebView).destroy() },
                     )
                 }
 

@@ -247,6 +247,7 @@ class MainActivity : ComponentActivity() {
 
     // ---------- Compose ----------
 
+    @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
     @Composable
     private fun MainScreen() {
         val state by vm.state.collectAsState()
@@ -412,7 +413,7 @@ class MainActivity : ComponentActivity() {
  */
 private class CreateDocContract(private val mimeType: String) : ActivityResultContract<String, Uri?>() {
     override fun createIntent(context: android.content.Context, input: String): Intent =
-        Intent(android.provider.MediaStore.ACTION_CREATE_DOCUMENT).apply {
+        Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
             putExtra(Intent.EXTRA_TITLE, input)
             setType(mimeType)
