@@ -25,6 +25,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -138,6 +139,7 @@ fun GalleryDialog(
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 for (p in chunks[ci]) {
                                     ThumbCell(
+                                        modifier = Modifier.weight(1f),
                                         photo = p,
                                         onClick = { viewerIndex = photos.indexOf(p) },
                                         onDelete = { onDeletePhoto(p.id) },
@@ -229,14 +231,13 @@ private fun OrderChip(label: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun ThumbCell(photo: PhotoThumb, onClick: () -> Unit, onDelete: () -> Unit) {
+private fun ThumbCell(modifier: Modifier = Modifier, photo: PhotoThumb, onClick: () -> Unit, onDelete: () -> Unit) {
     val bmp = remember(photo.thumb) { ImageUtils.decodeBitmap(photo.thumb) }
     DisposableEffect(bmp) {
         onDispose { bmp?.recycle() }
     }
     Box(
-        modifier = Modifier
-            .weight(1f)
+        modifier = modifier
             .height(110.dp)
             .clip(RoundedCornerShape(10.dp))
             .background(DarkBackground)
@@ -300,10 +301,10 @@ private fun FullscreenViewer(
     val current = photos.getOrNull(index) ?: run { onClose(); return }
 
     // загрузка blob при смене индекса
-    LaunchedEffectCompat(current.id) { id ->
-        onLoadBlob(id) { bytes ->
+    LaunchedEffect(current.id) {
+        onLoadBlob(current.id) { bytes ->
             val bmp = bytes?.let { ImageUtils.decodeBitmap(it) }
-            state = id to (bmp ?: "error")
+            state = current.id to (bmp ?: "error")
         }
     }
 
@@ -425,13 +426,5 @@ private fun RoundActionButton(iconRes: Int, tint: Color, onClick: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Icon(painterResource(iconRes), null, tint = tint, modifier = Modifier.size(20.dp))
-    }
-}
-
-/** Мини-обёртка: LaunchedEffect с ключом и параметром. */
-@Composable
-private fun LaunchedEffectCompat(key: Any?, block: suspend (Any?) -> Unit) {
-    if (key != null) {
-        androidx.compose.runtime.LaunchedEffect(key) { block(key) }
     }
 }

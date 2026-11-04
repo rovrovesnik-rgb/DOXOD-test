@@ -8,6 +8,7 @@ import android.os.Looper
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
@@ -79,16 +80,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // CreateDocument() без MIME-аргумента (Activity 1.5.1): MIME через переопределение createIntent
-    private val createJsonDoc = registerForActivityResult(object : ActivityResultContracts.CreateDocument() {
-        override fun createIntent(input: String, context: android.content.Context): Intent =
-            super.createIntent(input, context).apply { setType("application/json") }
-    }) { uri -> if (uri != null) writePending(uri) }
+    // CreateDocument с MIME через переопределение createIntent (сигнатура Activity 1.5.1)
+    private val createJsonDoc = registerForActivityResult(createDocContract("application/json")) { uri ->
+        if (uri != null) writePending(uri)
+    }
 
-    private val createHtmlDoc = registerForActivityResult(object : ActivityResultContracts.CreateDocument() {
-        override fun createIntent(input: String, context: android.content.Context): Intent =
-            super.createIntent(input, context).apply { setType("text/html") }
-    }) { uri -> if (uri != null) writePending(uri) }
+    private val createHtmlDoc = registerForActivityResult(createDocContract("text/html")) { uri ->
+        if (uri != null) writePending(uri)
+    }
 
     private val openJsonDoc = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) readImport(uri)
@@ -405,3 +404,22 @@ class MainActivity : ComponentActivity() {
         if (tick < 0) return
     }
 }
+
+/**
+ * CreateDocument с MIME: в activity-compose 1.5.1 конструктор CreateDocument(mimeType)
+ * отсутствует, а createIntent принимает только input — поэтому свой простой контракт
+ * на базе ACTION_CREATE_DOCUMENT.
+ */
+private class CreateDocContract(private val mimeType: String) : ActivityResultContract<String, Uri?>() {
+    override fun createIntent(context: android.content.Context, input: String): Intent =
+        Intent(android.provider.MediaStore.ACTION_CREATE_DOCUMENT).apply {
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            putExtra(Intent.EXTRA_TITLE, input)
+            setType(mimeType)
+        }
+
+    override fun parseResult(resultCode: Int, intent: Intent?): Uri? =
+        if (resultCode == android.app.Activity.RESULT_OK) intent?.data else null
+}
+
+private fun createDocContract(mime: String) = CreateDocContract(mime)

@@ -28,7 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -98,7 +98,7 @@ fun ReportDialog(
                 Spacer(Modifier.height(10.dp))
 
                 // Белый контейнер под WebView
-                val webViewRef = remember { mutableWebViewHolder() }
+                val webViewRef = remember { mutableStateOf<WebView?>(null) }
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -121,24 +121,19 @@ fun ReportDialog(
                                 webViewRef.value = this
                             }
                         },
+                        onDispose = { view -> (view as WebView).destroy() },
                     )
-                }
-                DisposableEffect(Unit) {
-                    onDispose {
-                        webViewRef.value?.destroy()
-                        webViewRef.value = null
-                    }
                 }
 
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ActionBtn(weight = 1f, icon = R.drawable.ic_print, label = "Печать / PDF", filled = true) {
+                    ActionBtn(modifier = Modifier.weight(1f), icon = R.drawable.ic_print, label = "Печать / PDF", filled = true) {
                         doPrint(context, webViewRef.value, fileName.removeSuffix(".html"))
                     }
-                    ActionBtn(weight = 1f, icon = R.drawable.ic_share, label = "Поделиться", filled = false) {
+                    ActionBtn(modifier = Modifier.weight(1f), icon = R.drawable.ic_share, label = "Поделиться", filled = false) {
                         shareHtml(context, fileName, html)
                     }
-                    ActionBtn(weight = 1f, icon = R.drawable.ic_save, label = "Сохранить", filled = false) {
+                    ActionBtn(modifier = Modifier.weight(1f), icon = R.drawable.ic_save, label = "Сохранить", filled = false) {
                         onSave(fileName)
                     }
                 }
@@ -147,22 +142,16 @@ fun ReportDialog(
     }
 }
 
-private class WvHolder { var value: WebView? = null }
-
-@Composable
-private fun mutableWebViewHolder(): WvHolder = remember { WvHolder() }
-
 @Composable
 private fun ActionBtn(
-    weight: Float,
+    modifier: Modifier = Modifier,
     icon: Int,
     label: String,
     filled: Boolean,
     onClick: () -> Unit,
 ) {
     Box(
-        modifier = Modifier
-            .weight(weight)
+        modifier = modifier
             .height(42.dp)
             .clip(RoundedCornerShape(10.dp))
             .then(

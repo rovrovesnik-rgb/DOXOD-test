@@ -273,7 +273,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val st = _state.value
         // Если удаляем сохранённую пустую строку (черновик под фото), освобождаем слот черновика блока
         val r = st.rows.firstOrNull { it.id == rowId }
-        if (r != null && !r.isFilled()) draftIds["${r.y}-${r.m}-${r.block}"] = null
+        if (r != null && !r.isFilled()) draftIds.remove("${r.y}-${r.m}-${r.block}")
         _state.value = st.copy(rows = st.rows.filter { it.id != rowId })
         scope.launch {
             withIo { db.deleteRowWithPhotos(rowId) }

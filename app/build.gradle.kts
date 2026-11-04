@@ -15,10 +15,3 @@ dependencies {
     implementation("androidx.compose.foundation:foundation:1.3.0")
     implementation("androidx.compose.material3:material3:1.0.0")
 }
-
-kotlin {
-    compilerOptions {
-        freeCompilerArgs.add("-opt-in=androidx.compose.material3.ExperimentalMaterial3Api")
-        freeCompilerArgs.add("-opt-in=androidx.compose.ui.window.ExperimentalDialogApi")
-    }
-}
